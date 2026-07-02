@@ -14,29 +14,14 @@ The default backend URL is `http://127.0.0.1:5000`. Change it in the popup Setti
 ## Release builds and updates
 
 The GitHub workflow at `.github/workflows/release-extension.yml` runs on pushes to `main`.
-It validates JavaScript and manifests, builds Chrome and Firefox folders, packages release artifacts, creates or updates a GitHub Release, and publishes update manifests through GitHub Pages.
+It validates JavaScript and manifests, builds Chrome and Firefox folders, packages release artifacts, submits Chrome/Firefox store updates when credentials are available, and creates or updates a GitHub Release.
 
-Firefox self-hosted updates use `updates/firefox.json` and the release `.xpi`. For production Firefox, use a signed XPI. The workflow signs it automatically when these repository secrets are set:
+Chrome Web Store handles automatic updates for the Chrome version after each submitted version is approved by Google. Firefox Add-ons handles automatic updates for the Firefox version after each submitted version is approved by Mozilla.
 
-- `AMO_JWT_ISSUER`
-- `AMO_JWT_SECRET`
+GitHub Releases include packaged zip artifacts for manual/testing use:
 
-For a public Firefox Add-ons listing, create API credentials in the Firefox Add-ons Developer Hub and set:
-
-- repository secret `AMO_JWT_ISSUER`: the AMO API key / JWT issuer.
-- repository secret `AMO_JWT_SECRET`: the AMO API secret / JWT secret.
-- repository variable `FIREFOX_RELEASE_CHANNEL`: set to `listed`.
-
-When `FIREFOX_RELEASE_CHANNEL` is `listed`, the workflow submits the Firefox build to addons.mozilla.org using `amo-metadata.json` and removes the self-hosted Firefox `update_url` before signing. Firefox Add-ons then handles automatic updates after Mozilla review.
-
-When `FIREFOX_RELEASE_CHANNEL` is unset or set to `unlisted`, the workflow creates a signed self-hosted XPI and publishes the `updates/firefox.json` manifest through GitHub Pages.
-
-Chrome self-hosted updates require a `.crx`, not a zip. To enable Chrome auto-updates, set:
-
-- repository secret `CHROME_CRX_PRIVATE_KEY_B64`: base64-encoded Chrome extension private key PEM.
-- repository variable `CHROME_EXTENSION_ID`: the extension ID produced from that private key.
-
-Without those values, the workflow still builds and releases the Chrome zip, but it cannot generate a valid Chrome auto-update manifest.
+- Chrome: `.zip`
+- Firefox: `.zip`
 
 ## Security model
 

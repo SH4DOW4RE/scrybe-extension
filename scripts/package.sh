@@ -29,7 +29,7 @@ with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED) as archive:
 PY
 cp "$PACKAGES/scrybe-chrome-$VERSION.zip" "$PACKAGES/scrybe-chrome.zip"
 
-python - "$ROOT/dist/firefox" "$PACKAGES/scrybe-firefox-$VERSION.xpi" <<'PY'
+python - "$ROOT/dist/firefox" "$PACKAGES/scrybe-firefox-$VERSION.zip" <<'PY'
 from pathlib import Path
 import sys
 import zipfile
@@ -41,7 +41,7 @@ with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         if path.is_file():
             archive.write(path, path.relative_to(source).as_posix())
 PY
-cp "$PACKAGES/scrybe-firefox-$VERSION.xpi" "$PACKAGES/scrybe-firefox.xpi"
+cp "$PACKAGES/scrybe-firefox-$VERSION.zip" "$PACKAGES/scrybe-firefox.zip"
 
 printf 'VERSION=%s\n' "$VERSION" > "$PACKAGES/build.env"
 printf 'Packaged extension version %s:\n' "$VERSION"
