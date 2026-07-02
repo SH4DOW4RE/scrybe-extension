@@ -1,0 +1,13 @@
+{
+  "summary": {
+    "en-US": "Privately sync bookmarks and browsing history across Firefox, Chrome, and compatible browsers."
+  },
+  "categories": [
+    "bookmarks",
+    "privacy-security"
+  ],
+  "version": {
+    "license": "all-rights-reserved",
+    "approval_notes": "Scrybe syncs bookmarks and browsing history using client-side encryption. The backend stores encrypted records and cannot decrypt synced bookmark/history content. Host permissions are used to fetch page HTML only when needed to discover declared favicon metadata. The extension does not execute remote code."
+  }
+}

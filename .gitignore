@@ -1,0 +1,34 @@
+# Browser build output
+dist/
+packages/
+*.crx
+*.pem
+
+# JavaScript dependencies and package-manager caches
+node_modules/
+.npm/
+.yarn/
+.pnpm-store/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test and coverage output
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

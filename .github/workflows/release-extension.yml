@@ -1,0 +1,167 @@
+name: Release Extension
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: extension-release
+  cancel-in-progress: false
+
+jobs:
+  build-pack-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read version
+        id: version
+        run: |
+          VERSION="$(python - <<'PY'
+          import json
+          with open('manifest.chrome.json', 'r', encoding='utf-8') as handle:
+              print(json.load(handle)['version'])
+          PY
+          )"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=extension-v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Validate source
+        run: |
+          python -m json.tool manifest.json >/dev/null
+          python -m json.tool manifest.chrome.json >/dev/null
+          python -m json.tool manifest.firefox.json >/dev/null
+          for file in src/*.js; do
+            node --check "$file"
+          done
+
+      - name: Build browser folders
+        env:
+          UPDATE_BASE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/updates
+        run: sh scripts/build.sh
+
+      - name: Package zip and xpi
+        run: sh scripts/package.sh
+
+      - name: Sign Firefox XPI
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+          FIREFOX_RELEASE_CHANNEL: ${{ vars.FIREFOX_RELEASE_CHANNEL || 'unlisted' }}
+        run: |
+          if [ -z "${AMO_JWT_ISSUER:-}" ] || [ -z "${AMO_JWT_SECRET:-}" ]; then
+            echo "AMO_JWT_ISSUER/AMO_JWT_SECRET are not set; Firefox XPI remains unsigned and may not auto-update in release Firefox." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [ "$FIREFOX_RELEASE_CHANNEL" != "listed" ] && [ "$FIREFOX_RELEASE_CHANNEL" != "unlisted" ]; then
+            echo "FIREFOX_RELEASE_CHANNEL must be listed or unlisted." >&2
+            exit 1
+          fi
+          if [ "$FIREFOX_RELEASE_CHANNEL" = "listed" ]; then
+            python - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest_path = Path("dist/firefox/manifest.json")
+          manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+          gecko = manifest.get("browser_specific_settings", {}).get("gecko", {})
+          gecko.pop("update_url", None)
+          manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+          PY
+          fi
+          rm -f packages/*.xpi
+          METADATA_ARGS=""
+          if [ "$FIREFOX_RELEASE_CHANNEL" = "listed" ]; then
+            METADATA_ARGS="--amo-metadata amo-metadata.json"
+          fi
+          npx --yes web-ext sign \
+            --source-dir dist/firefox \
+            --artifacts-dir packages \
+            --channel "$FIREFOX_RELEASE_CHANNEL" \
+            --api-key "$AMO_JWT_ISSUER" \
+            --api-secret "$AMO_JWT_SECRET" \
+            $METADATA_ARGS
+          SIGNED_XPI="$(find packages -maxdepth 1 -type f -name '*.xpi' | sort | tail -n 1)"
+          cp "$SIGNED_XPI" "packages/scrybe-firefox-${{ steps.version.outputs.version }}.xpi"
+          cp "$SIGNED_XPI" "packages/scrybe-firefox.xpi"
+          echo "Firefox package submitted with channel: $FIREFOX_RELEASE_CHANNEL" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Package Chrome CRX
+        env:
+          CHROME_CRX_PRIVATE_KEY_B64: ${{ secrets.CHROME_CRX_PRIVATE_KEY_B64 }}
+        run: |
+          if [ -z "${CHROME_CRX_PRIVATE_KEY_B64:-}" ]; then
+            echo "CHROME_CRX_PRIVATE_KEY_B64 is not set; skipping Chrome CRX packaging." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if ! command -v google-chrome >/dev/null 2>&1; then
+            echo "google-chrome is not available on this runner; cannot package Chrome CRX." >&2
+            exit 1
+          fi
+          echo "$CHROME_CRX_PRIVATE_KEY_B64" | base64 -d > chrome-extension.pem
+          google-chrome --headless --disable-gpu --no-sandbox \
+            --pack-extension="$PWD/dist/chrome" \
+            --pack-extension-key="$PWD/chrome-extension.pem"
+          mv "$PWD/dist/chrome.crx" "$PWD/packages/scrybe-chrome.crx"
+
+      - name: Generate update manifests
+        env:
+          CHROME_EXTENSION_ID: ${{ vars.CHROME_EXTENSION_ID }}
+        run: |
+          mkdir -p site/updates
+          RELEASE_BASE_URL="https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}"
+          if [ -f packages/scrybe-chrome.crx ] && [ -n "$CHROME_EXTENSION_ID" ]; then
+            python scripts/generate-update-manifests.py \
+              --version "${{ steps.version.outputs.version }}" \
+              --release-base-url "$RELEASE_BASE_URL" \
+              --out-dir site/updates \
+              --chrome-extension-id "$CHROME_EXTENSION_ID" \
+              --include-chrome
+          else
+            python scripts/generate-update-manifests.py \
+              --version "${{ steps.version.outputs.version }}" \
+              --release-base-url "$RELEASE_BASE_URL" \
+              --out-dir site/updates
+            echo "Chrome auto-update manifest was not generated. Set CHROME_CRX_PRIVATE_KEY_B64 secret and CHROME_EXTENSION_ID repository variable." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" packages/* --clobber
+          else
+            gh release create "$TAG" packages/* \
+              --title "Scrybe Extension ${{ steps.version.outputs.version }}" \
+              --notes "Automated extension build for Scrybe ${{ steps.version.outputs.version }}."
+          fi
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: scrybe-extension-${{ steps.version.outputs.version }}
+          path: |
+            packages/*
+            site/updates/*
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy update manifests to Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

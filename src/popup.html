@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Scrybe</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <h1>Scrybe</h1>
+          <p id="accountStatus">Offline</p>
+        </div>
+        <button id="syncButton" class="icon-button hidden" title="Sync now">Sync</button>
+      </header>
+
+      <section id="setupPanel" class="setup-panel">
+        <section class="connection-card">
+          <h2>Create new account</h2>
+          <p class="empty">Start a new encrypted Scrybe account on this browser.</p>
+          <button id="newAccountButton" class="primary full">New account</button>
+        </section>
+
+        <section class="connection-card">
+          <h2>Pair this browser</h2>
+          <p class="empty">Use a pairing code from a browser that is already connected.</p>
+          <form id="claimForm" class="inline-form">
+            <label>
+              Pairing code
+              <input id="pairCodeInput" autocomplete="one-time-code" placeholder="ABCD-EFGH-...">
+            </label>
+            <button type="submit">Pair browser</button>
+          </form>
+        </section>
+
+        <section class="connection-card">
+          <h2>Recover account</h2>
+          <p class="empty">Use the recovery code you saved when creating the account.</p>
+          <form id="recoveryForm" class="inline-form">
+            <label>
+              Recovery code
+              <input id="recoveryCodeInput" autocomplete="off" placeholder="ABCD-EFGH-...">
+            </label>
+            <button type="submit">Recover account</button>
+          </form>
+        </section>
+      </section>
+
+      <section id="onboardingRecoveryPanel" class="setup-panel hidden">
+        <h2>Save your recovery code</h2>
+        <p class="empty">Keep this code somewhere safe. It is the only way to recover this account if every browser disconnects.</p>
+        <div id="onboardingRecoveryCode" class="pair-code"></div>
+        <button id="onboardingDoneButton" class="primary">I saved this code</button>
+      </section>
+
+      <section id="appPanel" class="hidden">
+        <nav class="tabs" aria-label="Scrybe sections">
+          <button class="tab active" data-tab="bookmarks">Bookmarks</button>
+          <button class="tab" data-tab="history">History</button>
+          <button class="tab" data-tab="settings">Settings</button>
+        </nav>
+
+        <section id="bookmarks" class="panel active">
+          <button id="saveBookmarkButton" class="primary full">Save current tab</button>
+          <div id="bookmarksList" class="list"></div>
+        </section>
+
+        <section id="history" class="panel">
+          <button id="clearHistoryButton" class="danger full">Clear history</button>
+          <div id="historyList" class="list"></div>
+        </section>
+
+        <section id="settings" class="panel">
+          <form id="settingsForm" class="settings-form">
+            <label>
+              Backend URL
+              <input id="backendUrlInput" placeholder="http://127.0.0.1:5000">
+            </label>
+            <button type="submit">Save settings</button>
+          </form>
+
+          <div class="pair-box">
+            <button id="pairButton" class="full">Pair new browser</button>
+            <div id="pairCode" class="pair-code hidden"></div>
+          </div>
+
+          <div class="pair-box">
+            <button id="recoveryButton" class="full">Replace recovery code</button>
+            <div id="recoveryCode" class="pair-code hidden"></div>
+            <p class="empty">This invalidates the old recovery code. Keep the new code somewhere safe.</p>
+          </div>
+
+          <section class="devices-section">
+            <div class="section-heading">
+              <h2>Paired browsers</h2>
+              <button id="refreshDevicesButton" type="button">Refresh</button>
+            </div>
+            <div id="devicesList" class="devices-list"></div>
+          </section>
+        </section>
+      </section>
+
+      <p id="message" class="message" role="status"></p>
+
+      <dialog id="confirmDialog" class="confirm-dialog">
+        <form method="dialog">
+          <h2 id="confirmTitle">Confirm</h2>
+          <p id="confirmText"></p>
+          <div class="dialog-actions">
+            <button id="confirmCancelButton" value="cancel">Cancel</button>
+            <button id="confirmOkButton" class="danger" value="ok">Delete</button>
+          </div>
+        </form>
+      </dialog>
+    </main>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
