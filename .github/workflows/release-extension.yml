@@ -47,27 +47,6 @@ jobs:
       - name: Package browser zips
         run: sh scripts/package.sh
 
-      - name: Submit Chrome to Chrome Web Store
-        env:
-          CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
-          CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
-          CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
-          CHROME_EXTENSION_ID: ${{ vars.CHROME_EXTENSION_ID }}
-          CHROME_PUBLISHER_ID: ${{ vars.CHROME_PUBLISHER_ID }}
-        run: |
-          if [ -z "${CHROME_CLIENT_ID:-}" ] || [ -z "${CHROME_CLIENT_SECRET:-}" ] || [ -z "${CHROME_REFRESH_TOKEN:-}" ] || [ -z "${CHROME_EXTENSION_ID:-}" ] || [ -z "${CHROME_PUBLISHER_ID:-}" ]; then
-            echo "Chrome Web Store credentials/IDs are incomplete; skipping Chrome submission." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          python scripts/publish-chrome-web-store.py \
-            --zip "packages/scrybe-chrome-${{ steps.version.outputs.version }}.zip" \
-            --publisher-id "$CHROME_PUBLISHER_ID" \
-            --extension-id "$CHROME_EXTENSION_ID" \
-            --client-id "$CHROME_CLIENT_ID" \
-            --client-secret "$CHROME_CLIENT_SECRET" \
-            --refresh-token "$CHROME_REFRESH_TOKEN"
-          echo "Chrome package submitted to Chrome Web Store." >> "$GITHUB_STEP_SUMMARY"
-
       - name: Submit Firefox to AMO
         env:
           AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
